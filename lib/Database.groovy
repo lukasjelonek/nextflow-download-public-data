@@ -20,6 +20,10 @@ class Database {
         if (providers.containsKey(parameters['db'])){
             if (providers[parameters['db']].containsKey(parameters['format'])){
                 def provider = providers[parameters['db']][parameters['format']]
+                if (!(parameters.accessions instanceof List)) {
+                    parameters.accessions = parameters.accessions.split(',')
+                }
+                println (parameters)
                 // TODO include reading accession files before passing them over to the handler
                 provider.handle(parameters)
             } else {
@@ -35,7 +39,7 @@ class Database {
 class EnaSraFastqProvider {
 
     def handle(Map parameters) {
-        return fromSraAccessions(parameters.accessions)
+        return fromSraAccessions(parameters.accessions.join(','))
     }
 
 
@@ -83,12 +87,12 @@ class EnaNucleotideProvider {
     def handle(parameters) {
         if(parameters.format == "fasta") {
             return Channel
-            .fromPath("https://www.ebi.ac.uk/ena/data/view/${parameters.accessions}&display=fasta")
+            .fromPath("https://www.ebi.ac.uk/ena/data/view/${parameters.accessions.join(',')}&display=fasta")
             .splitFasta(by:1)
         } else if (parameters.format == "embl"){
-            return Channel
-            .fromPath("https://www.ebi.ac.uk/ena/data/view/${parameters.accessions}&display=text")
-            .splitFasta(by:1)
+            return Channel.from (parameters.accessions.collect{
+                file("https://www.ebi.ac.uk/ena/data/view/${it}&display=text")
+            })
         } else {
             throw new RuntimeException("Format ${parameters.format} not supported for EnaNucleotide")
         }
